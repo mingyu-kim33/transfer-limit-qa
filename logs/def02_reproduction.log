@@ -1,0 +1,26 @@
+============================= test session starts ==============================
+collected 1 item
+
+tests/test_regression_found_defects.py F                                 [100%]
+
+=================================== FAILURES ===================================
+_ TestCrossDayCancellation.test_cancelling_yesterday_transfer_does_not_free_today_limit _
+
+self = <tests.test_regression_found_defects.TestCrossDayCancellation object at 0x7f378f7fc440>
+app = <pages.transfer_page.TransferPage object at 0x7f378e9fdc70>
+
+    def test_cancelling_yesterday_transfer_does_not_free_today_limit(self, app):
+        app.transfer(ONCE)
+        app.advance_day()
+        assert app.daily_used == 0
+    
+        app.cancel(1)
+>       assert app.daily_used == 0, "전날 건 취소가 오늘 소진액을 바꿔서는 안 됨"
+E       AssertionError: 전날 건 취소가 오늘 소진액을 바꿔서는 안 됨
+E       assert -1000000 == 0
+E        +  where -1000000 = <pages.transfer_page.TransferPage object at 0x7f378e9fdc70>.daily_used
+
+tests/test_regression_found_defects.py:36: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_regression_found_defects.py::TestCrossDayCancellation::test_cancelling_yesterday_transfer_does_not_free_today_limit
+============================== 1 failed in 2.62s ===============================

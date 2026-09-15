@@ -1,0 +1,7 @@
+__pycache__/
+.pytest_cache/
+*.pyc
+report.html
+tests/.ledger_db/
+*.sqlite3
+demo_db/

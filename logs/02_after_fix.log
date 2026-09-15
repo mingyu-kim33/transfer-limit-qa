@@ -1,0 +1,11 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/claude/transfer_limit_qa
+configfile: pytest.ini
+testpaths: tests
+collected 19 items
+
+tests/test_limit_rules.py ..............                                 [ 73%]
+tests/test_random_sequence.py .....                                      [100%]
+
+======================== 19 passed in 119.68s (0:01:59) ========================

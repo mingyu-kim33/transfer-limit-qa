@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>이체 한도 시뮬레이터</title>
+<style>
+  :root{
+    --blue:#3182F6; --blue-dark:#1B64DA; --blue-weak:#EDF3FF;
+    --ink:#191F28; --ink-2:#4E5968; --sub:#8B95A1;
+    --line:#E5E8EB; --line-2:#F2F4F6;
+    --bg:#F7F8FA; --white:#FFF;
+    --red:#F04452; --red-weak:#FFF0F1;
+    --green:#00A86B; --green-weak:#E8F8F1;
+    --amber:#FF9500;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:'Pretendard','Apple SD Gothic Neo',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    background:var(--bg); color:var(--ink);
+    font-feature-settings:'tnum';
+    line-height:1.5;
+  }
+
+  /* ---------- shell ---------- */
+  .topbar{
+    background:var(--white); border-bottom:1px solid var(--line);
+    padding:0 32px; height:64px;
+    display:flex; align-items:center; gap:16px;
+    position:sticky; top:0; z-index:10;
+  }
+  .brand{font-size:17px; font-weight:800; letter-spacing:-.02em}
+  .brand span{color:var(--sub); font-weight:600; margin-left:8px; font-size:13px}
+  .daybadge{
+    margin-left:auto; display:flex; align-items:center; gap:8px;
+    background:var(--blue-weak); color:var(--blue-dark);
+    padding:7px 14px; border-radius:999px; font-size:13px; font-weight:800;
+  }
+  .topactions{display:flex; gap:8px}
+
+  main{max-width:1440px; margin:0 auto; padding:28px 32px 64px;
+       display:grid; grid-template-columns:370px minmax(0,1fr) 380px; gap:20px; align-items:stretch}
+  .stack{display:grid; gap:20px; align-content:start}
+  .stack.fill{align-content:stretch}
+  .stack.fill > .card{height:100%; display:flex; flex-direction:column}
+  .span-all{grid-column:1/-1}
+
+  /* ---------- card ---------- */
+  .card{background:var(--white); border:1px solid var(--line); border-radius:18px; padding:24px}
+  .card-head{display:flex; align-items:baseline; gap:10px; margin-bottom:18px}
+  .card-head h2{font-size:16px; font-weight:800; letter-spacing:-.01em}
+  .card-head .hint{font-size:12.5px; color:var(--sub); font-weight:500}
+
+  /* ---------- form ---------- */
+  label{display:block; font-size:13px; font-weight:700; color:var(--ink-2); margin-bottom:8px}
+  .money{position:relative; margin-bottom:14px}
+  .money input{
+    width:100%; padding:16px 44px 16px 16px; font-size:22px; font-weight:800;
+    border:1px solid var(--line); border-radius:12px; background:var(--line-2);
+    font-family:inherit; letter-spacing:-.02em; text-align:right;
+  }
+  .money input:focus{outline:none; background:var(--white); border-color:var(--blue); box-shadow:0 0 0 3px rgba(49,130,246,.12)}
+  .money .won{position:absolute; right:16px; top:50%; transform:translateY(-50%);
+              font-size:16px; font-weight:700; color:var(--sub); pointer-events:none}
+
+  .chips{display:flex; gap:6px; margin-bottom:18px; flex-wrap:wrap}
+  .chip{
+    border:1px solid var(--line); background:var(--white); color:var(--ink-2);
+    border-radius:999px; padding:7px 12px; font-size:12.5px; font-weight:700;
+    cursor:pointer; font-family:inherit;
+  }
+  .chip:hover{border-color:var(--blue); color:var(--blue)}
+
+  select{
+    width:100%; padding:13px 14px; border:1px solid var(--line); border-radius:12px;
+    font-size:15px; font-weight:600; font-family:inherit; background:var(--white);
+    margin-bottom:18px; color:var(--ink);
+  }
+  select:focus{outline:none; border-color:var(--blue)}
+
+  .num-input{
+    width:100%; padding:13px 14px; border:1px solid var(--line); border-radius:12px;
+    font-size:15px; font-weight:700; font-family:inherit; margin-bottom:16px; text-align:right;
+  }
+  .num-input:focus{outline:none; border-color:var(--blue)}
+
+  button{
+    border:none; border-radius:12px; padding:14px 18px;
+    font-size:15px; font-weight:800; font-family:inherit; cursor:pointer;
+    background:var(--blue); color:#fff; letter-spacing:-.01em;
+  }
+  button:hover{background:var(--blue-dark)}
+  button.ghost{background:var(--line-2); color:var(--ink-2)}
+  button.ghost:hover{background:#E8EBED}
+  button.sm{padding:8px 13px; font-size:12.5px; border-radius:9px}
+  .btnrow{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+  .btnrow.single{grid-template-columns:1fr}
+  .limit-grid{display:grid; grid-template-columns:1fr 1fr; gap:0 14px}
+
+  /* ---------- messages ---------- */
+  .msg{display:none; margin-top:14px; padding:13px 15px; border-radius:11px;
+       font-size:13.5px; font-weight:700; line-height:1.5}
+  .msg.err{background:var(--red-weak); color:var(--red)}
+  .msg.ok{background:var(--green-weak); color:var(--green)}
+
+  /* ---------- gauge ---------- */
+  .headline{display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:14px}
+  .headline .lab{font-size:13px; font-weight:700; color:var(--sub)}
+  .headline .val{font-size:34px; font-weight:800; letter-spacing:-.03em}
+  .headline .val::after{content:'원'; font-size:16px; font-weight:700; color:var(--sub); margin-left:4px}
+  .gauge{height:10px; background:var(--line-2); border-radius:999px; overflow:hidden}
+  .gauge > i{display:block; height:100%; width:0%; background:var(--blue);
+             border-radius:999px; transition:width .25s ease}
+  .gauge.warn > i{background:var(--amber)}
+  .gauge.full > i{background:var(--red)}
+  .gauge-cap{display:flex; justify-content:space-between; margin-top:9px;
+             font-size:12px; font-weight:700; color:var(--sub)}
+
+  .rows{margin-top:20px; border-top:1px solid var(--line-2)}
+  .row{display:flex; justify-content:space-between; align-items:center;
+       padding:13px 0; border-bottom:1px solid var(--line-2); font-size:14px}
+  .row:last-child{border-bottom:none}
+  .row span{color:var(--ink-2); font-weight:600}
+  .row b{font-weight:800; font-size:15px}
+
+  /* ---------- table ---------- */
+  table{width:100%; border-collapse:collapse}
+  th{text-align:left; font-size:12px; font-weight:800; color:var(--sub);
+     padding:0 0 11px; border-bottom:1px solid var(--line)}
+  th.r,td.r{text-align:right}
+  td{padding:13px 14px 13px 0; border-bottom:1px solid var(--line-2); font-size:14px; font-weight:600}
+  th{padding-right:14px}
+  tr:last-child td{border-bottom:none}
+  .empty{padding:34px 0; text-align:center; color:var(--sub); font-size:13.5px; font-weight:600}
+  .badge{display:inline-block; padding:4px 10px; border-radius:7px; font-size:12px; font-weight:800}
+  .badge.done{background:var(--green-weak); color:var(--green)}
+  .badge.void{background:var(--line-2); color:var(--sub)}
+  .route{font-size:12.5px; color:var(--sub); font-weight:700}
+  .mono-label{font-family:ui-monospace,Menlo,monospace; font-size:12px; font-weight:700;
+              color:var(--blue); background:var(--blue-weak); padding:3px 8px; border-radius:6px}
+  table.ledger td, table.ledger th{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px}
+  table.ledger td{font-weight:600}
+  .ledger-sum{display:flex; justify-content:space-between; align-items:center;
+              margin-top:14px; padding:13px 15px; background:var(--line-2); border-radius:10px}
+  .ledger-sum span{font-size:12.5px; font-weight:700; color:var(--ink-2)}
+  .ledger-sum code{font-family:ui-monospace,Menlo,monospace; font-size:11.5px; color:var(--sub)}
+  .ledger-sum b{font-family:ui-monospace,Menlo,monospace; font-size:15px; font-weight:800}
+
+  /* ---------- log ---------- */
+  .log{
+    background:#0F1419; color:#B6C2CF; border-radius:12px; padding:16px 18px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:12px; line-height:1.85; flex:1; min-height:300px; overflow-y:auto; white-space:pre-wrap;
+  }
+  .log:empty::before{content:'동작을 수행하면 로그가 기록됩니다.'; color:#5A6672}
+
+  .note{
+    font-size:12.5px; color:var(--sub); line-height:1.7;
+    padding:16px 20px; background:var(--white); border:1px dashed var(--line);
+    border-radius:14px; font-weight:600;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">이체 한도 시뮬레이터<span>QA 자동화 테스트 대상</span></div>
+  <div class="daybadge">영업일 <b data-testid="current-day">2026-09-14</b></div>
+  <span data-testid="pending-writes" hidden>0</span>
+  <div class="topactions">
+    <button class="ghost sm" id="btn-advance" data-testid="advance-day-btn">다음 날로 이동</button>
+    <button class="ghost sm" id="btn-reset" data-testid="reset-btn">초기화</button>
+  </div>
+</div>
+
+<main>
+
+  <!-- 좌측: 이체 -->
+  <div class="stack fill">
+    <div class="card">
+      <div class="card-head"><h2>이체하기</h2></div>
+
+      <label for="amount">이체 금액</label>
+      <div class="money">
+        <input id="amount" type="number" data-testid="amount-input" placeholder="0">
+        <span class="won">원</span>
+      </div>
+      <div class="chips">
+        <button type="button" class="chip" data-amount="100000">10만</button>
+        <button type="button" class="chip" data-amount="500000">50만</button>
+        <button type="button" class="chip" data-amount="1000000">100만</button>
+      </div>
+
+      <label for="channel">이체 경로</label>
+      <select id="channel" data-testid="channel-select">
+        <option value="app">앱 이체</option>
+        <option value="auto">자동이체</option>
+        <option value="open">오픈뱅킹 출금</option>
+      </select>
+
+      <div class="btnrow">
+        <button id="btn-transfer" data-testid="transfer-btn">이체하기</button>
+        <button id="btn-concurrent" class="ghost" data-testid="concurrent-btn">동시 2건 요청</button>
+      </div>
+
+      <div class="msg err" id="err" data-testid="error-message"></div>
+      <div class="msg ok" id="ok" data-testid="success-message"></div>
+    </div>
+
+  </div>
+
+  <!-- 가운데: 한도 현황만 -->
+  <div class="stack">
+    <div class="card">
+      <div class="card-head"><h2>오늘 한도 현황</h2></div>
+      <div class="headline">
+        <div class="lab">남은 한도</div>
+        <div class="val" data-testid="daily-remaining">3,000,000</div>
+      </div>
+      <div class="gauge" id="gauge"><i></i></div>
+      <div class="gauge-cap">
+        <span>사용 <b data-testid="daily-used">0</b>원</span>
+        <span>1일 한도 <b data-testid="daily-limit">3,000,000</b>원</span>
+      </div>
+      <div class="rows">
+        <div class="row"><span>1회 이체 한도</span><b data-testid="once-limit">1,000,000</b></div>
+        <div class="row"><span>오늘 이체 건수</span><b id="today-count">0건</b></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>한도 변경</h2><span class="hint">즉시 적용</span></div>
+      <div class="limit-grid">
+        <div>
+          <label for="new-once">1회 한도</label>
+          <input id="new-once" type="number" class="num-input" data-testid="new-once-input" value="1000000">
+        </div>
+        <div>
+          <label for="new-daily">1일 한도</label>
+          <input id="new-daily" type="number" class="num-input" data-testid="new-daily-input" value="3000000">
+        </div>
+      </div>
+      <div class="btnrow single">
+        <button id="btn-apply" data-testid="apply-limit-btn">한도 적용</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 우측: 로그 -->
+  <div class="stack fill">
+    <div class="card">
+      <div class="card-head"><h2>실행 로그</h2></div>
+      <div class="log" id="log" data-testid="log-panel"></div>
+    </div>
+  </div>
+
+  <!-- 하단 전폭: 원장 -->
+  <div class="card span-all">
+    <div class="card-head">
+      <h2>원장</h2>
+      <span class="mono-label">transfer_ledger</span>
+      <span class="hint">SQLite에 적재 / 화면과 별개 경로로 조회됨</span>
+    </div>
+    <table class="ledger">
+      <thead>
+        <tr>
+          <th style="width:60px">id</th>
+          <th class="r" style="width:150px">amount</th>
+          <th style="width:110px">channel</th>
+          <th style="width:100px">status</th>
+          <th style="width:100px">biz_date</th>
+          <th class="r" style="width:150px">limit_at_time</th>
+          <th class="r"></th>
+        </tr>
+      </thead>
+      <tbody id="ledger" data-testid="ledger-body"></tbody>
+    </table>
+    <div class="empty" id="empty-state">적재된 거래가 없습니다.</div>
+    <div class="ledger-sum">
+      <span>당일 원장 합계 <code>SELECT SUM(amount) WHERE status='완료' AND biz_date=today</code></span>
+      <b data-testid="ledger-sum-today">0</b>
+    </div>
+  </div>
+
+  <div class="note span-all">
+    QA 자동화 테스트 대상으로 만든 가상 앱입니다. 실제 금융 서비스와 무관하며,
+    모든 인터랙션 요소에 <code>data-testid</code>를 부여해 스타일 변경과 무관하게 자동화가 유지되도록 구성했습니다.
+  </div>
+
+</main>
+
+<script src="vendor/sql-wasm.js"></script>
+<script>
+// ---- 브라우저 내장 SQLite (sql.js / WebAssembly) ----
+// 서버 없이 정적 파일 하나로 실제 SQLite 엔진을 구동한다.
+// 화면 소진액(state.used)은 JS가 들고 있는 값이고,
+// 원장(transfer_ledger)은 이 in-browser DB에 INSERT되는 별도 저장소다.
+// 테스트는 window.__runSQL()로 이 DB에 직접 SQL을 실행해 화면 값과 대조한다.
+let db = null;
+let dbReady = initSqlJs({
+  locateFile: file => `vendor/${file}`
+}).then(SQL => {
+  db = new SQL.Database();
+  db.run(`CREATE TABLE transfer_ledger (
+    id INTEGER PRIMARY KEY,
+    amount INTEGER NOT NULL,
+    channel TEXT NOT NULL,
+    status TEXT NOT NULL,
+    biz_date TEXT NOT NULL,
+    limit_at_time INTEGER NOT NULL
+  );`);
+  window.__dbInitDone = true;
+});
+
+// 테스트(Playwright)가 이 함수로 실제 SQL을 실행해 화면 값과 대조한다.
+window.__runSQL = function(sql, params = []) {
+  const res = db.exec(sql, params);
+  if (res.length === 0) return [];
+  const cols = res[0].columns;
+  return res[0].values.map(row => Object.fromEntries(cols.map((c, i) => [c, row[i]])));
+};
+
+const state = {
+  day: 0,
+  onceLimit: 1000000,
+  dailyLimit: 3000000,
+  used: 0,
+  seq: 0,
+  ledger: []
+};
+
+// 원장 레코드를 브라우저 내장 SQLite(sql.js)에 INSERT한다. 화면 상태(state)와는 별개 경로.
+let pendingWrites = 0;
+function bumpPending(delta){
+  pendingWrites += delta;
+  const el = document.querySelector('[data-testid="pending-writes"]');
+  if (el) el.textContent = String(pendingWrites);
+}
+async function ledgerInsert(record){
+  bumpPending(1);
+  try {
+    await dbReady;
+    db.run(
+      "INSERT INTO transfer_ledger (id, amount, channel, status, biz_date, limit_at_time) VALUES (?, ?, ?, ?, ?, ?)",
+      [record.id, record.amount, record.channel, record.status, dateOf(record.day), record.onceLimitAtTime]
+    );
+  } catch(e) { log('LEDGER-ERROR - SQLite 적재 실패: ' + e.message); }
+  finally { bumpPending(-1); }
+}
+async function ledgerCancel(id){
+  bumpPending(1);
+  try {
+    await dbReady;
+    db.run("UPDATE transfer_ledger SET status='취소' WHERE id = ?", [id]);
+  } catch(e) { log('LEDGER-ERROR - SQLite 취소 반영 실패: ' + e.message); }
+  finally { bumpPending(-1); }
+}
+async function ledgerResetRemote(){
+  try {
+    await dbReady;
+    db.run("DELETE FROM transfer_ledger");
+  } catch(e) {}
+}
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => n.toLocaleString('ko-KR');
+
+// 영업일 오프셋(state.day)을 실제 날짜로 환산한다.
+// 내부 계산과 DB 적재는 오프셋 정수를 그대로 쓰고, 표시만 날짜로 한다.
+const BASE_DATE = new Date(2026, 8, 14); // 2026-09-14
+function dateOf(dayOffset){
+  const d = new Date(BASE_DATE);
+  d.setDate(d.getDate() + dayOffset);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+function log(msg){
+  const el = $('log');
+  el.textContent += `[${dateOf(state.day)}] ${msg}\n`;
+  el.scrollTop = el.scrollHeight;
+}
+
+function render(){
+  document.querySelector('[data-testid="current-day"]').textContent = dateOf(state.day);
+  document.querySelector('[data-testid="once-limit"]').textContent = fmt(state.onceLimit);
+  document.querySelector('[data-testid="daily-limit"]').textContent = fmt(state.dailyLimit);
+  document.querySelector('[data-testid="daily-used"]').textContent = fmt(state.used);
+  document.querySelector('[data-testid="daily-remaining"]').textContent = fmt(state.dailyLimit - state.used);
+
+  // 사용률 게이지
+  const ratio = state.dailyLimit > 0 ? state.used / state.dailyLimit : 0;
+  const gauge = $('gauge');
+  gauge.querySelector('i').style.width = Math.max(0, Math.min(1, ratio)) * 100 + '%';
+  gauge.className = 'gauge' + (ratio >= 1 ? ' full' : ratio >= 0.8 ? ' warn' : '');
+
+  const todayCount = state.ledger.filter(h => h.day === state.day && h.status === '완료').length;
+  $('today-count').textContent = todayCount + '건';
+
+  const tb = $('ledger');
+  tb.innerHTML = '';
+  state.ledger.forEach(h => {
+    const tr = document.createElement('tr');
+    tr.setAttribute('data-testid', 'ledger-row-' + h.id);
+    const done = h.status === '완료';
+    tr.innerHTML = `
+      <td>${h.id}</td>
+      <td class="r" data-testid="ledger-amount-${h.id}">${fmt(h.amount)}</td>
+      <td><span class="route">${({app:'app',auto:'auto',open:'open'})[h.channel]}</span></td>
+      <td><span class="badge ${done ? 'done' : 'void'}" data-testid="ledger-status-${h.id}">${h.status}</span></td>
+      <td data-testid="ledger-day-${h.id}">${dateOf(h.day)}</td>
+      <td class="r" data-testid="ledger-limit-${h.id}">${fmt(h.onceLimitAtTime)}</td>
+      <td class="r">${done
+        ? `<button class="ghost sm" data-testid="cancel-btn-${h.id}" onclick="cancelTransfer(${h.id})">취소</button>`
+        : ''}</td>`;
+    tb.appendChild(tr);
+  });
+  $('empty-state').style.display = state.ledger.length ? 'none' : 'block';
+
+  // 원장에서 직접 집계한 당일 합계. 화면 소진액과는 별개 경로로 계산된다.
+  const ledgerSum = state.ledger
+    .filter(h => h.status === '완료' && h.day === state.day)
+    .reduce((a, h) => a + h.amount, 0);
+  document.querySelector('[data-testid="ledger-sum-today"]').textContent = fmt(ledgerSum);
+}
+
+function showError(msg){
+  const e = $('err'), o = $('ok');
+  e.textContent = msg; e.style.display = 'block'; o.style.display = 'none';
+  log('DENIED - ' + msg);
+}
+function showOk(msg){
+  const e = $('err'), o = $('ok');
+  o.textContent = msg; o.style.display = 'block'; e.style.display = 'none';
+  log('OK - ' + msg);
+}
+function clearMsg(){ $('err').style.display='none'; $('ok').style.display='none'; }
+
+function validate(amount){
+  if (!Number.isFinite(amount) || amount <= 0) return '1원 이상의 금액을 입력해주세요.';
+  if (!Number.isInteger(amount)) return '원 단위로만 이체할 수 있어요.';
+  if (amount > state.onceLimit) return `1회 이체 한도(${fmt(state.onceLimit)}원)를 초과했어요.`;
+  if (state.used + amount > state.dailyLimit) {
+    return `1일 이체 한도를 초과했어요. 오늘 남은 한도는 ${fmt(state.dailyLimit - state.used)}원이에요.`;
+  }
+  return null;
+}
+
+function transfer(amount, channel){
+  clearMsg();
+  const err = validate(amount);
+  if (err) { showError(err); return false; }
+  state.used += amount;
+  state.seq += 1;
+  const record = { id: state.seq, amount, channel, status: '완료', day: state.day, onceLimitAtTime: state.onceLimit };
+  state.ledger.push(record);
+  ledgerInsert(record);
+  showOk(`${fmt(amount)}원 이체가 완료됐어요.`);
+  render();
+  return true;
+}
+
+function cancelTransfer(id){
+  const h = state.ledger.find(x => x.id === id);
+  if (!h || h.status !== '완료') return;
+  h.status = '취소';
+  ledgerCancel(id);
+  if (h.day === state.day) {
+    // 당일 건만 오늘 소진액에서 복구한다.
+    // 지난 날짜의 이체를 취소해도 오늘 한도가 늘어나서는 안 된다.
+    state.used -= h.amount;
+    log(`CANCEL - #${id} 취소, 한도 ${fmt(h.amount)}원 복구`);
+  } else {
+    log(`CANCEL - #${id} 취소 (${dateOf(h.day)} 건, 오늘 한도에는 영향 없음)`);
+  }
+  render();
+}
+
+document.querySelectorAll('.chip').forEach(c => {
+  c.onclick = () => { $('amount').value = c.dataset.amount; };
+});
+
+$('btn-transfer').onclick = () => {
+  transfer(parseFloat($('amount').value), $('channel').value);
+};
+
+$('btn-concurrent').onclick = () => {
+  const amount = parseFloat($('amount').value);
+  const channel = $('channel').value;
+  clearMsg();
+  log('CONCURRENT - 동일 금액 2건 동시 요청');
+  const results = [amount, amount].map(a => {
+    // 검사와 차감을 한 단위로 처리한다. 직전 건의 차감이 반영된 상태에서 다음 건을 판정.
+    if (!Number.isFinite(a) || a <= 0) return false;
+    if (a > state.onceLimit) return false;
+    if (state.used + a > state.dailyLimit) return false;
+    state.used += a;
+    state.seq += 1;
+    const record = { id: state.seq, amount: a, channel, status: '완료', day: state.day, onceLimitAtTime: state.onceLimit };
+    state.ledger.push(record);
+    ledgerInsert(record);
+    return true;
+  });
+  const okCount = results.filter(Boolean).length;
+  log(`CONCURRENT - ${okCount}건 처리, 소진액 ${fmt(state.used)}`);
+  render();
+};
+
+$('btn-apply').onclick = () => {
+  clearMsg();
+  const once = parseInt($('new-once').value, 10);
+  const daily = parseInt($('new-daily').value, 10);
+  if (daily < state.used) {
+    showError(`오늘 이미 ${fmt(state.used)}원을 이체해서, 1일 한도를 그보다 낮게 설정할 수 없어요.`);
+    return;
+  }
+  state.onceLimit = once;
+  state.dailyLimit = daily;
+  log(`LIMIT - 1회 ${fmt(once)} / 1일 ${fmt(daily)} 적용`);
+  render();
+};
+
+$('btn-advance').onclick = () => {
+  state.day += 1;
+  state.used = 0;
+  log('ROLLOVER - 일자 변경, 소진액 초기화');
+  clearMsg();
+  render();
+};
+
+$('btn-reset').onclick = () => {
+  state.day = 0; state.onceLimit = 1000000; state.dailyLimit = 3000000;
+  state.used = 0; state.seq = 0; state.ledger = [];
+  $('log').textContent = '';
+  $('new-once').value = 1000000; $('new-daily').value = 3000000;
+  $('amount').value = '';
+  clearMsg();
+  ledgerResetRemote();
+  render();
+};
+
+// 페이지 최초 로드 시 이전 세션 잔재 제거
+ledgerResetRemote();
+
+render();
+</script>
+</body>
+</html>
