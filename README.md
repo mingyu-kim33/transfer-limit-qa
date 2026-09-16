@@ -9,8 +9,8 @@ GitHub Pages에 배포되어 있습니다. 별도 서버/DB 설정 없이 링크
 
 **https://mingyu-kim33.github.io/transfer-limit-qa/**
 
-> 저장소 루트의 `index.html`과 `vendor/`는 Pages 배포용 사본이며 `app/`과 동일한 파일입니다.
-> 테스트는 `app/`을 대상으로 실행됩니다.
+저장소 루트의 `index.html`과 `vendor/`는 Pages 배포용 사본이며 `app/`과 동일한 파일입니다.
+테스트는 `app/`을 대상으로 실행됩니다.
 
 로컬에서 열 때는 `app/index.html`을 바로 열어도 되지만, 일부 브라우저의 WebAssembly 보안 정책상
 정적 서버로 여는 걸 권장합니다: `cd app && python -m http.server 8000`
