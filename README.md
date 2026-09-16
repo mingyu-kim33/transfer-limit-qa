@@ -3,6 +3,28 @@
 이체 한도 기능을 대상으로, **정합성 불변식**을 정의하고 자동으로 감시하는 테스트를 구성했습니다.
 가상의 시뮬레이터를 대상으로 하며 실제 서비스와는 무관합니다.
 
+## 실행 링크
+
+GitHub Pages에 배포되어 있습니다. 별도 서버·DB 설정 없이 링크만으로 열립니다.
+
+**https://mingyu-kim33.github.io/transfer-limit-qa/**
+
+> 저장소 루트의 `index.html`과 `vendor/`는 Pages 배포용 사본이며 `app/`과 동일한 파일입니다.
+> 테스트는 `app/`을 대상으로 실행됩니다.
+
+로컬에서 열 때는 `app/index.html`을 바로 열어도 되지만, 일부 브라우저의 WebAssembly 보안 정책상
+정적 서버로 여는 걸 권장합니다: `cd app && python -m http.server 8000`
+
+## 테스트 실행
+
+```bash
+pip install -r requirements.txt
+playwright install chromium
+pytest
+```
+
+각 테스트는 새 브라우저 컨텍스트를 받으므로 sql.js 인스턴스와 원장이 테스트마다 격리됩니다.
+
 ## 서버 없이, 링크 하나로 동작합니다
 
 이 앱은 별도 백엔드가 없습니다. **sql.js**(WebAssembly로 컴파일된 진짜 SQLite)를
@@ -64,44 +86,20 @@ transfer_limit_qa/
 │   ├── test_random_sequence.py     [무작위 시퀀스 + 불변식 검사]
 │   └── test_regression_found_defects.py  [발견된 결함의 회귀 테스트]
 ├── .github/workflows/ci.yml
-└── logs/                           [발견 전 / 후 실행 로그]
+├── logs/                           [발견 전 / 후 실행 로그]
+├── index.html                      [Pages 배포용 사본 — app/index.html과 동일]
+└── vendor/                         [Pages 배포용 사본 — app/vendor와 동일]
 ```
-
-## GitHub Pages로 배포하기
-
-1. 이 저장소를 GitHub에 push합니다.
-2. 저장소 **Settings → Pages**에서 Source를 `main` 브랜치의 `/app` 폴더로 지정합니다.
-3. 몇 분 뒤 `https://<계정>.github.io/<저장소명>/`으로 접속하면 시뮬레이터가 바로 열립니다.
-
-별도 서버·DB 설정이 필요 없습니다. `app/` 폴더 자체가 완결된 정적 페이지입니다.
-
-## 테스트 실행
-
-```bash
-pip install -r requirements.txt
-playwright install chromium
-pytest
-```
-
-### 앱을 직접 열어보려면
-
-서버가 필요 없습니다. `app/index.html`을 더블클릭해서 열거나,
-GitHub Pages로 배포된 링크로 바로 접속하면 됩니다.
-(`file://`로 열어도 동작하지만, 일부 브라우저의 WebAssembly 보안 정책상
-간단한 정적 서버로 여는 걸 권장합니다: `cd app && python -m http.server 8000`)
-
-브라우저 탭(페이지)마다 독립된 sql.js 인스턴스가 뜨므로, 세션을 별도로
-관리할 필요가 없습니다. 테스트에서도 각 테스트가 새 브라우저 컨텍스트를
-받아 원장이 자연히 격리됩니다.
 
 ## 설계 원칙
 
-- 모든 요소에 `data-testid`를 부여해, 스타일이 바뀌어도 테스트가 깨지지 않도록 함
+- 모든 요소에 `data-testid`를 부여해 스타일·DOM 구조 변경과 테스트를 분리
 - 화면 접근은 Page Object 안에만 두어 마크업 변경의 영향 범위를 한 파일로 제한
 - 경계값은 손으로 나열하지 않고 한도 값에서 생성 — 한도가 바뀌면 테스트도 따라감
 - 무작위 테스트는 seed를 고정해 재현 가능하게 두고, 위반 시 동작 순서를 그대로 출력해
   수동 재현 절차서로 쓸 수 있게 함
-
+- 영업일은 화면에 `2026-09-14` 형태로 표시하되 내부 계산과 DB 적재는 기준일 오프셋 정수를 사용.
+  Page Object가 화면 날짜를 오프셋으로 환산해 비교하므로 표시 형식이 바뀌어도 검증 로직은 영향 없음
 
 ## 발견한 결함
 
@@ -136,29 +134,10 @@ GitHub Pages로 배포된 링크로 바로 접속하면 됩니다.
 - `logs/02_after_fix.log` — 결함 수정 후 19건 통과
 - `logs/03_final_all_pass.log` — 회귀 테스트 추가 후 23건 통과
 - `logs/04_after_ui_redesign.log` — UI 전면 개편 후 재실행, 테스트 코드 수정 없이 23건 통과
-- `logs/05_after_ledger.log` — 화면 내 원장 패널 도입 후 23건 통과
-- `logs/06_after_sqlite.log` — SQLite 서버 연동 후 23건 통과, 실행 시간도 단축(정적 서버 → 스레딩 서버)
-- `logs/07_after_layout_split.log` — 레이아웃 3열 재구성 후 23건 통과 (테스트 코드 수정 없음)
-- `logs/08_after_layout_align.log` — 열 높이 정렬 및 컴포넌트 조정 후 23건 통과 (테스트 코드 수정 없음)
-- `logs/09_after_date_display.log` — 영업일 표시를 실제 날짜로 전환한 뒤 23건 통과
 - `logs/10_after_sqljs_static.log` — 서버를 없애고 sql.js(브라우저 내장 SQLite)로 전환한 뒤 23건 통과.
   이 전환으로 앱이 완전한 정적 페이지가 되어 별도 배포 없이 링크만으로 실행 가능해졌습니다.
 
-## 영업일은 날짜로 보여주고, 저장은 오프셋으로
-
-화면과 로그, 원장의 `biz_date`는 `2026-09-14` 형태의 날짜로 표시하지만,
-내부 계산과 DB 적재는 기준일로부터의 오프셋 정수를 씁니다.
-Page Object가 화면의 날짜를 읽어 오프셋으로 환산해 비교하므로,
-표시 형식이 바뀌어도 검증 로직은 영향을 받지 않습니다.
-
-## 화면과 원장을 따로 읽습니다
-
-화면에 표시되는 소진액은 앱이 들고 있는 값이고, 원장(`transfer_ledger`)은
-거래가 적재되는 원본입니다. 두 값은 서로 다른 경로로 갱신되므로,
-같은 화면 안에서 자기 자신을 대조하면 어긋난 상태를 잡을 수 없습니다.
-
-그래서 테스트는 **표시값과 원장 레코드를 각각 읽어 대조**합니다.
-DEF-02(전날 건 취소가 오늘 소진액을 차감하던 결함)는 정확히 이 괴리로 드러났습니다.
+그 사이의 로그(05~09)는 레이아웃·표시 형식 등 UI 변경 후 재실행 기록이며, 모두 테스트 코드 수정 없이 23건 통과했습니다.
 
 ## UI를 전면 개편해도 테스트는 그대로였습니다
 
