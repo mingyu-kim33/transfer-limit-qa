@@ -5,7 +5,7 @@
 
 ## 실행 링크
 
-GitHub Pages에 배포되어 있습니다. 별도 서버·DB 설정 없이 링크만으로 열립니다.
+GitHub Pages에 배포되어 있습니다. 별도 서버/DB 설정 없이 링크만으로 열립니다.
 
 **https://mingyu-kim33.github.io/transfer-limit-qa/**
 
@@ -39,7 +39,7 @@ sql.js DB에 INSERT되는 별도 저장소입니다. 테스트는 Playwright의 
 
 ```sql
 SELECT COALESCE(SUM(amount), 0) FROM transfer_ledger
-WHERE status = '완료' AND biz_date = ?
+WHERE status = 완료 AND biz_date = ?
 ```
 
 같은 화면 안에서 자기 자신을 대조하면 렌더 로직이 틀렸을 때 양쪽이 같이
@@ -53,8 +53,8 @@ DEF-02(전날 건 취소가 오늘 소진액을 차감하던 결함)를 잡아�
 
 그래서 이 프로젝트는 두 층으로 나눴습니다.
 
-- **케이스 층** — 한도 경계, 누적, 취소, 일자 변경처럼 명시적으로 정의된 규칙을 확인
-- **불변식 층** — 어떤 경로로 조작되든 항상 참이어야 하는 규칙을 정의하고, 모든 동작 뒤에 검사
+- **케이스 층**: 한도 경계, 누적, 취소, 일자 변경처럼 명시적으로 정의된 규칙을 확인
+- **불변식 층**: 어떤 경로로 조작되든 항상 참이어야 하는 규칙을 정의하고, 모든 동작 뒤에 검사
 
 불변식은 케이스 테스트 안에서도 매번 함께 검사되고,
 무작위 시퀀스 테스트에서 수백 회 반복 검증됩니다.
@@ -75,30 +75,30 @@ DEF-02(전날 건 취소가 오늘 소진액을 차감하던 결함)를 잡아�
 ```
 transfer_limit_qa/
 ├── app/
-│   ├── index.html                  [테스트 대상 시뮬레이터 — 서버 없이 완전히 독립 실행]
-│   └── vendor/                     [sql.js — 브라우저 내장 SQLite(WebAssembly), 로컬 번들]
+│   ├── index.html                  [테스트 대상 시뮬레이터: 서버 없이 완전히 독립 실행]
+│   └── vendor/                     [sql.js: 브라우저 내장 SQLite(WebAssembly), 로컬 번들]
 ├── pages/
-│   └── transfer_page.py            [Page Object Model — page.evaluate로 sql.js에 SQL 직접 실행]
+│   └── transfer_page.py            [Page Object Model: page.evaluate로 sql.js에 SQL 직접 실행]
 ├── tests/
 │   ├── conftest.py                 [정적 서버 / 브라우저 fixture]
-│   ├── invariants.py               [불변식 정의 — 이 프로젝트의 핵심]
+│   ├── invariants.py               [불변식 정의: 이 프로젝트의 핵심]
 │   ├── test_limit_rules.py         [경계값 / 누적 / 취소 / 롤오버]
 │   ├── test_random_sequence.py     [무작위 시퀀스 + 불변식 검사]
 │   └── test_regression_found_defects.py  [발견된 결함의 회귀 테스트]
 ├── .github/workflows/ci.yml
 ├── logs/                           [발견 전 / 후 실행 로그]
-├── index.html                      [Pages 배포용 사본 — app/index.html과 동일]
-└── vendor/                         [Pages 배포용 사본 — app/vendor와 동일]
+├── index.html                      [Pages 배포용 사본: app/index.html과 동일]
+└── vendor/                         [Pages 배포용 사본: app/vendor와 동일]
 ```
 
 ## 설계 원칙
 
-- 모든 요소에 `data-testid`를 부여해 스타일·DOM 구조 변경과 테스트를 분리
+- 모든 요소에 `data-testid`를 부여해 스타일/DOM 구조 변경과 테스트를 분리
 - 화면 접근은 Page Object 안에만 두어 마크업 변경의 영향 범위를 한 파일로 제한
-- 경계값은 손으로 나열하지 않고 한도 값에서 생성 — 한도가 바뀌면 테스트도 따라감
+- 경계값은 손으로 나열하지 않고 한도 값에서 생성: 한도가 바뀌면 테스트도 따라감
 - 무작위 테스트는 seed를 고정해 재현 가능하게 두고, 위반 시 동작 순서를 그대로 출력해
   수동 재현 절차서로 쓸 수 있게 함
-- 영업일은 화면에 `2026-09-14` 형태로 표시하되 내부 계산과 DB 적재는 기준일 오프셋 정수를 사용.
+- 영업일은 화면에 2026-09-14 형태로 표시하되 내부 계산과 DB 적재는 기준일 오프셋 정수를 사용.
   Page Object가 화면 날짜를 오프셋으로 환산해 비교하므로 표시 형식이 바뀌어도 검증 로직은 영향 없음
 
 ## 발견한 결함
@@ -130,18 +130,18 @@ transfer_limit_qa/
 
 ## 실행 로그
 
-- `logs/01_before_fix.log` — 최초 실행, 6건 실패
-- `logs/02_after_fix.log` — 결함 수정 후 19건 통과
-- `logs/03_final_all_pass.log` — 회귀 테스트 추가 후 23건 통과
-- `logs/04_after_ui_redesign.log` — UI 전면 개편 후 재실행, 테스트 코드 수정 없이 23건 통과
-- `logs/10_after_sqljs_static.log` — 서버를 없애고 sql.js(브라우저 내장 SQLite)로 전환한 뒤 23건 통과.
+- `logs/01_before_fix.log`: 최초 실행, 6건 실패
+- `logs/02_after_fix.log`: 결함 수정 후 19건 통과
+- `logs/03_final_all_pass.log`: 회귀 테스트 추가 후 23건 통과
+- `logs/04_after_ui_redesign.log`: UI 전면 개편 후 재실행, 테스트 코드 수정 없이 23건 통과
+- `logs/10_after_sqljs_static.log`: 서버를 없애고 sql.js(브라우저 내장 SQLite)로 전환한 뒤 23건 통과.
   이 전환으로 앱이 완전한 정적 페이지가 되어 별도 배포 없이 링크만으로 실행 가능해졌습니다.
 
-그 사이의 로그(05~09)는 레이아웃·표시 형식 등 UI 변경 후 재실행 기록이며, 모두 테스트 코드 수정 없이 23건 통과했습니다.
+그 사이의 로그(05~09)는 레이아웃/표시 형식 등 UI 변경 후 재실행 기록이며, 모두 테스트 코드 수정 없이 23건 통과했습니다.
 
 ## UI를 전면 개편해도 테스트는 그대로였습니다
 
-레이아웃, 색상, 컴포넌트 구조를 모두 바꾸고 게이지·칩·상태 배지를 새로 추가했지만,
+레이아웃, 색상, 컴포넌트 구조를 모두 바꾸고 게이지/칩/상태 배지를 새로 추가했지만,
 테스트 코드와 Page Object는 한 줄도 수정하지 않았습니다.
 
 모든 요소를 `data-testid`로만 접근했기 때문입니다. 클래스명이나 DOM 경로에
